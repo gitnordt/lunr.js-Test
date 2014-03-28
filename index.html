@@ -1,0 +1,194 @@
+<head>
+  <script src="jquery.js" type="text/javascript" charset="utf-8"></script>
+  <script src="mustache.js" type="text/javascript" charset="utf-8"></script>
+  <script src="lunr.js" type="text/javascript" charset="utf-8"></script>
+
+  <script id="results-table-template" type="text/mustache">
+  </script>
+  
+  <script type="text/javascript" charset="utf-8">
+
+
+    $(document).ready(function () {
+
+      // load the data and acquire the results
+      $.getJSON('AA-software.json', function (data) {
+
+        
+		var count = 0;
+		var headers = ["id"];
+        // format the raw json and add an id to make it simpler to work with		
+		results = data.map(function (raw) {
+			var res = {};
+			res["id"] = count++;
+			for (var key in raw){
+				if(res[key] == "Categories" || res[key] == "Program Teams")
+					res[key] = raw[key].join('+');
+				else
+					res[key] = raw[key];
+				
+				//If this header is not already in the header array, then add it
+				if(!(headers.indexOf(key) > -1))
+					headers.push(key);
+			}
+			return res;
+        })
+		console.log(results);
+	    // set up the index, specifying the fields of the documents.
+		var idx = lunr(function () {
+			for(var i=0; i<headers.length; i++){
+				  var field = headers[i];
+				  
+				  if (field == 'id')
+					this.ref(field)
+				  else if(field == "Software")	
+					this.field(field, { boost: 100 }) //software and categories are of higher relevance
+				  else if(field == "Categories")	
+					this.field(field, { boost: 200 }) //software and categories are of higher relevance
+				  else
+					this.field(field)
+			 }
+			 return this;
+		})
+		
+		//set the results table template
+		var heading = "<table id='results-table'>{{#results}}";
+		var content_rows = "";
+		var header_row = "<tr>";
+		for(var i=0; i<headers.length; i++){
+			var data = headers[i];
+
+			if (data == 'id')
+				content_rows += "<tr data-question-id='{{" + data + "}}'>";
+			else{
+				header_row += "<th>" + data + "</th>";
+				content_rows += "<td>{{" + data + "}}</td>";
+			}
+		}
+		header_row += "</tr>";
+		content_rows += "</tr>";
+		var footer = "{{/results}}</table>";
+		
+		$("#results-table-template").text(heading + content_rows + footer);
+
+		
+		// load the results table template
+		var resultsTableTemplate = $("#results-table-template").text()
+	   
+		//fetch the results
+		var renderResultsTable = function (rs) {
+			$("#results-container").empty().append(Mustache.to_html(resultsTableTemplate, {results: rs}))
+			$(header_row).insertBefore("#results-table tr:first");
+			 
+		}
+		
+		results.forEach(function (record) {
+			idx.add(record)
+		})
+		
+        renderResultsTable(results);
+		$("#results-table").hide();
+		
+        $('a.all').bind('click', function () {
+          renderResultsTable(results)
+		  $("#results-table").hide();
+          $('input').val('')
+        })
+
+		//timer for searching the index
+        var debounce = function (fn) {
+				  console.log("debounced!");
+
+          var timeout; 
+		  return function () {
+            var args = Array.prototype.slice.call(arguments),
+                ctx = this
+
+            clearTimeout(timeout)
+            timeout = setTimeout(function () {
+              fn.apply(ctx, args);
+				
+			  if (ctx.value == "" || ctx.value.length < 3){
+				$("#results-table").css({'display' : 'none'});
+			  }
+			  else{
+				console.log("pass query");
+				$("#results-table").css({'display' : 'inline'});
+				}
+				
+            }, 200)
+          }
+        }
+		
+		//console.log(idx);
+		//validates the input, submits a query and returns the results.
+        $('input').bind('keyup', debounce(function () {
+			  var query = $(this).val()
+			  console.log("matches on:"); 
+			  var match = "";
+			  
+			  var documents = idx.search(query).map(function (result) { 
+				return results.filter(function (q) { match += result.ref + ",";  return q.id === parseInt(result.ref, 10) })[0]})
+				
+			  //software and description are working
+			  console.log(match);
+			  renderResultsTable(documents)	
+        }))
+      })
+    })
+
+  </script>
+
+  <style type="text/css" media="screen">
+
+    body {
+      background-color: #081f28;
+      color: #708284;
+      font-family: 'Helvetica Neue';
+      font-size: 16px;
+    }
+
+    a {
+      color: #2076c7;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    input {
+      width: 200px;
+      font-size: 1.4em;
+    }
+
+    #wrap {
+      width: 960px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #results-container {
+      float: left;
+      width: 30%;
+    }
+    .controls {
+      padding-top: 30px;
+      padding-bottom: 10px;
+      border-top: 3px dashed #708284;
+    }
+  </style>
+
+</head>
+<body>
+  <div id="wrap">
+    <div class="controls">
+      <input type="search" placeholder="Search..."></input>
+      <a class="all" href="#">Clear</a>
+    </div>
+
+    <div class="results">
+      <div id='results-container'></div>
+    </div>
+  </div>
+</body>
