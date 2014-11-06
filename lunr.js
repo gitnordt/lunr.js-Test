@@ -197,16 +197,11 @@ lunr.EventEmitter.prototype.hasHandler = function (name) {
  */
 lunr.tokenizer = function (obj) {
   if (!arguments.length || obj == null || obj == undefined) return []
-  var str = '';
- // console.log("orig str:" + obj);
-  if (Array.isArray(obj)) {
-	str = arrayToString(obj);
-  }
-  else
-	str = obj.toString().replace(/^\s+/, '')
-	
+  if (Array.isArray(obj)) return obj.map(function (t) { return t.toLowerCase() })
+
+  var str = obj.toString().replace(/^\s+/, '')
+
   for (var i = str.length - 1; i >= 0; i--) {
-	//console.log(str);
     if (/\S/.test(str.charAt(i))) {
       str = str.substring(0, i + 1)
       break
@@ -215,17 +210,11 @@ lunr.tokenizer = function (obj) {
 
   return str
     .split(/\s+/)
-    .map(function (token) { //console.log("tokens:" + token.replace(/^\W+/, '').replace(/\W+$/, '').toLowerCase());
+    .map(function (token) {
       return token.replace(/^\W+/, '').replace(/\W+$/, '').toLowerCase()
     })
 }
 ;
-
-function arrayToString(obj){
-	var new_obj = "";
-	new_obj = obj.map(function (t) { /*console.log("array:" + t.toLowerCase());*/ return t.toLowerCase();});
-	return new_obj.toString().replace(',',' ');
-}
 /*!
  * lunr.Pipeline
  * Copyright (C) 2014 Oliver Nightingale
@@ -404,10 +393,10 @@ lunr.Pipeline.prototype.run = function (tokens) {
   var out = [],
       tokenLength = tokens.length,
       stackLength = this._stack.length
-	 //console.log(this._stack);
+
   for (var i = 0; i < tokenLength; i++) {
     var token = tokens[i]
-	//console.log("token:" + token);
+
     for (var j = 0; j < stackLength; j++) {
       token = this._stack[j](token, i, tokens)
       if (token === void 0) break
@@ -415,8 +404,7 @@ lunr.Pipeline.prototype.run = function (tokens) {
 
     if (token !== void 0) out.push(token)
   };
-  
- //console.log(out);
+
   return out
 }
 
@@ -901,12 +889,10 @@ lunr.Index.prototype.add = function (doc, emitEvent) {
       allDocumentTokens = new lunr.SortedSet,
       docRef = doc[this._ref],
       emitEvent = emitEvent === undefined ? true : emitEvent
-	
-	//console.log("doc:" + docRef);
+
   this._fields.forEach(function (field) {
-   //console.log(field);
     var fieldTokens = this.pipeline.run(lunr.tokenizer(doc[field.name]))
-	//console.log("field:" + fieldTokens);
+
     docTokens[field.name] = fieldTokens
     lunr.SortedSet.prototype.add.apply(allDocumentTokens, fieldTokens)
   }, this)
@@ -1007,6 +993,7 @@ lunr.Index.prototype.update = function (doc, emitEvent) {
 lunr.Index.prototype.idf = function (term) {
   var cacheKey = "@" + term
   if (Object.prototype.hasOwnProperty.call(this._idfCache, cacheKey)) return this._idfCache[cacheKey]
+
   var documentFrequency = this.tokenStore.count(term),
       idf = 1
 
@@ -1175,6 +1162,7 @@ lunr.Store = function () {
  */
 lunr.Store.load = function (serialisedData) {
   var store = new this
+
   store.length = serialisedData.length
   store.store = Object.keys(serialisedData.store).reduce(function (memo, key) {
     memo[key] = lunr.SortedSet.load(serialisedData.store[key])
@@ -1261,8 +1249,6 @@ lunr.Store.prototype.toJSON = function () {
  * @see lunr.Pipeline
  */
 lunr.stemmer = (function(){
-	console.log("the stemmer");
-	
   var step2list = {
       "ational" : "ate",
       "tional" : "tion",
@@ -1317,12 +1303,10 @@ lunr.stemmer = (function(){
       re4;
 
     if (w.length < 3) { return w; }
-	//console.log(w);
+
     firstch = w.substr(0,1);
     if (firstch == "y") {
-	 
       w = firstch.toUpperCase() + w.substr(1);
-	   //console.log("firstch:" + w);
     }
 
     // Step 1a
